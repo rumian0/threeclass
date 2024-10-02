@@ -1,0 +1,204 @@
+﻿<!DOCTYPE html>
+<html>
+
+<head>
+	<title>三班照片墙 </title>
+
+	<meta charset="UTF-8">
+	<meta name="Author" content="三班">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+
+</head>
+
+<body>
+	<div id="container"></div>
+	<audio autoplay loop controls id="music">
+		<source src="img/875007460.mp3">
+	</audio>
+
+	<script src="js/three.min.js"></script>
+	<!-- 补间动画 -->
+	<script src="js/tween.min.js"></script>
+	<!-- 轨迹球控制器（TrackballControls） -->
+	<script src="js/TrackballControls.js"></script>
+
+	<script src="js/CSS3DRenderer.js"></script>
+
+
+	<script>
+		let musicDom = document.getElementById("music");
+
+		let picArr = [];
+
+		// 生成随机图片
+		for (let i = 0; i < 199; i++) {
+			let yu = i % 16;
+			if (yu == 0) {
+				yu = 16;
+			}
+			picArr.push({
+				url: "img/" + yu + ".webp"
+			});
+		}
+
+		let table = [];
+		for (let i = 0; i < picArr.length; i++) {
+			table[i] = {};
+			if (i < picArr.length) {
+				table[i] = picArr[i];
+			}
+			table[i].p_x = i % 20 + 1;
+			table[i].p_y = Math.floor(i / 20) + 1;
+		}
+
+		//场景（scene）、相机（camera）和渲染器（renderer），这样我们就能透过摄像机渲染出场景
+		let camera, scene, renderer;
+		let controls;
+		let objects = [];
+		let targets = [];
+
+		init();
+		animate();
+
+
+		function init() {
+			//透视相机
+			camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 10000);
+			camera.position.z = 3000;
+			//创建一个新的场景对象。
+			scene = new THREE.Scene();
+
+			for (let i = 0; i < table.length; i++) {
+				//创建dom元素
+				let dom = document.createElement('div');
+				dom.className = 'element';
+				let img = document.createElement('img');
+				img.src = table[i].url;
+				dom.appendChild(img);
+
+				let object = new THREE.CSS3DObject(dom);
+				object.position.x = Math.random() * 4000 - 2000;
+				object.position.y = Math.random() * 4000 - 2000;
+				object.position.z = Math.random() * 4000 - 2000;
+				scene.add(object);
+				objects.push(object);
+			}
+			//三维向量
+			let vector = new THREE.Vector3();
+			//球坐标
+			let spherical = new THREE.Spherical();
+
+			for (let i = 0, l = objects.length; i < l; i++) {
+				let phi = Math.acos(-1 + (2 * i) / l);
+				let theta = Math.sqrt(l * Math.PI) * phi;
+				//这是Three.js中大部分对象的基类，提供了一系列的属性和方法来对三维空间中的物体进行操纵。
+				let object = new THREE.Object3D();
+				spherical.set(800, phi, theta);
+				object.position.setFromSpherical(spherical);
+				vector.copy(object.position).multiplyScalar(2);
+				object.lookAt(vector);
+				targets.push(object);
+			}
+			//CSS3DRenderer用于通过CSS3的transform属性， 将层级的3D变换应用到DOM元素上
+			renderer = new THREE.CSS3DRenderer();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			renderer.domElement.style.position = 'absolute';
+			document.getElementById('container').appendChild(renderer.domElement);
+			// 鼠标控制
+			controls = new THREE.TrackballControls(camera, renderer.domElement);
+			controls.rotateSpeed = 0.5;//旋转的速度
+			controls.minDistance = 500;//够将相机向内移动多少
+			controls.maxDistance = 6000;//将相机向外移动多少
+			controls.addEventListener('change', render);
+			transform();
+			//窗口大小变化事件
+			window.addEventListener('resize', onWindowResize, false);
+		}
+
+		function transform() {
+			let duration = 2000;
+			TWEEN.removeAll();
+			for (let i = 0; i < objects.length; i++) {
+				let object = objects[i];
+				let target = targets[i];
+
+				new TWEEN.Tween(object.position)
+					.to({ x: target.position.x, y: target.position.y, z: target.position.z }, Math.random() * duration + duration)
+					.easing(TWEEN.Easing.Exponential.InOut)
+					.start();
+
+				new TWEEN.Tween(object.rotation)
+					.to({ x: target.rotation.x, y: target.rotation.y, z: target.rotation.z }, Math.random() * duration + duration)
+					.easing(TWEEN.Easing.Exponential.InOut)
+					.start();
+			}
+			new TWEEN.Tween(this)
+				.to({}, duration * 2)
+				.onUpdate(render)
+				.start();
+		}
+
+		function onWindowResize() {
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			render();
+		}
+
+		//旋转动画
+		function animate() {
+			// 让场景通过x轴或者y轴旋转  & z
+			// scene.rotation.x += 0.001;
+			scene.rotation.y += 0.001;
+			requestAnimationFrame(animate);
+			TWEEN.update();
+			controls.update();
+			// 渲染循环
+			render();
+		}
+
+		function render() {
+			renderer.render(scene, camera);
+		}
+
+	</script>
+	<style>
+		html,
+		body {
+			height: 100%;
+		}
+
+		body {
+			background-color: #000000;
+			margin: 0;
+			overflow: hidden;
+		}
+
+		.element {
+			width: 140px;
+			height: 140px;
+			cursor: pointer;
+			box-shadow: 0px 0px 12px rgba(238, 196, 11, 0.5);
+			border: 2px solid #fff;
+			text-align: center;
+			cursor: default;
+		}
+
+		.element:hover {
+			box-shadow: 0px 0px 12px rgba(11, 250, 250, 0.85);
+			border: 2px solid rgba(127, 255, 255, 0.85);
+		}
+
+		.element img {
+			width: 140px;
+			height: 140px;
+			cursor: pointer;
+		}
+
+		#music {
+			display: none;
+		}
+	</style>
+</body>
+
+</html>
